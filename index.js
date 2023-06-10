@@ -29,6 +29,14 @@ async function run() {
 
         const usersCollection = client.db("athleticAcademy").collection("users");
 
+
+        // JWT TOKEN SIGN HERE
+        app.post('/jwt', (req, res) => {
+            const user = req.body;
+            const token = jwt.sign(user, process.env.ACCESS_TOKEN, { expiresIn: '1h' })
+            res.send({ token })
+        })
+
         // users related apis
         app.get('/users', async (req, res) => {
             const result = await usersCollection.find().toArray();
