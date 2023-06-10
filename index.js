@@ -1,6 +1,7 @@
 const express = require('express');
 const app = express();
 const cors = require('cors');
+const jwt = require('jsonwebtoken');
 require('dotenv').config()
 const port = process.env.PORT || 5000;
 
@@ -85,7 +86,7 @@ async function run() {
             const result = await usersCollection.insertOne(user);
             res.send(result);
         });
-
+        // check user is admin or not
         app.get('/users/admin/:email', verifyJWT, async (req, res) => {
             const email = req.params.email;
 
@@ -95,6 +96,18 @@ async function run() {
             const query = { email: email }
             const user = await usersCollection.findOne(query);
             const result = { admin: user?.role === 'admin' }
+            res.send(result);
+        })
+        // check user is instructor or not
+        app.get('/users/instructor/:email', verifyJWT, async (req, res) => {
+            const email = req.params.email;
+
+            if (req.decoded.email !== email) {
+                res.send({ instructor: false })
+            }
+            const query = { email: email }
+            const user = await usersCollection.findOne(query);
+            const result = { instructor: user?.role === 'instructor' }
             res.send(result);
         })
         // make user student to admin
@@ -111,7 +124,7 @@ async function run() {
             res.send(result);
         })
         // make user student to instructor
-        app.patch('/users/admin/:id', async (req, res) => {
+        app.patch('/users/instructor/:id', async (req, res) => {
             const id = req.params.id;
             const filter = { _id: new ObjectId(id) };
             const updateDoc = {
