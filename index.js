@@ -158,6 +158,30 @@ async function run() {
             res.send(result);
         })
 
+        // see all class api here
+        app.get('/allClass', verifyJWT, async (req, res) => {
+            const email = req.query.email;
+
+            if (!email) {
+                res.send([]);
+            }
+
+            const decodedEmail = req.decoded.email;
+            if (email !== decodedEmail) {
+                return res.status(403).send({ error: true, message: 'forbidden access' })
+            }
+
+            const query = { instructorEmail: email };
+            const result = await classCollection.find(query).toArray();
+            res.send(result);
+        });
+
+        // all courses or classes data here
+        app.get('/allCourses', async (req, res) => {
+            const result = await classCollection.find().toArray();
+            res.send(result);
+        })
+
         // Send a ping to confirm a successful connection
         await client.db("admin").command({ ping: 1 });
         console.log("Pinged your deployment. You successfully connected to MongoDB!");
