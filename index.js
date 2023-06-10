@@ -47,6 +47,7 @@ async function run() {
         await client.connect();
 
         const usersCollection = client.db("athleticAcademy").collection("users");
+        const classCollection = client.db("athleticAcademy").collection("allClass");
 
 
         // JWT TOKEN SIGN HERE
@@ -68,7 +69,7 @@ async function run() {
         }
 
         // users related apis
-        app.get('/users', async (req, res) => {
+        app.get('/users', verifyJWT, verifyAdmin, async (req, res) => {
             const result = await usersCollection.find().toArray();
             res.send(result);
         });
@@ -86,16 +87,16 @@ async function run() {
             const result = await usersCollection.insertOne(user);
             res.send(result);
         });
-        // check user is admin or not
-        app.get('/users/admin/:email', verifyJWT, async (req, res) => {
+        // check user is student or not
+        app.get('/users/student/:email', verifyJWT, async (req, res) => {
             const email = req.params.email;
 
             if (req.decoded.email !== email) {
-                res.send({ admin: false })
+                res.send({ student: false })
             }
             const query = { email: email }
             const user = await usersCollection.findOne(query);
-            const result = { admin: user?.role === 'admin' }
+            const result = { student: user?.role === 'student' }
             res.send(result);
         })
         // check user is instructor or not
@@ -110,8 +111,21 @@ async function run() {
             const result = { instructor: user?.role === 'instructor' }
             res.send(result);
         })
+        // check user is admin or not
+        app.get('/users/admin/:email', verifyJWT, async (req, res) => {
+            const email = req.params.email;
+
+            if (req.decoded.email !== email) {
+                res.send({ admin: false })
+            }
+            const query = { email: email }
+            const user = await usersCollection.findOne(query);
+            const result = { admin: user?.role === 'admin' }
+            res.send(result);
+        })
+
         // make user student to admin
-        app.patch('/users/admin/:id', async (req, res) => {
+        app.patch('/users/admin/:id', verifyJWT, verifyAdmin, async (req, res) => {
             const id = req.params.id;
             const filter = { _id: new ObjectId(id) };
             const updateDoc = {
@@ -124,7 +138,7 @@ async function run() {
             res.send(result);
         })
         // make user student to instructor
-        app.patch('/users/instructor/:id', async (req, res) => {
+        app.patch('/users/instructor/:id', verifyJWT, verifyAdmin, async (req, res) => {
             const id = req.params.id;
             const filter = { _id: new ObjectId(id) };
             const updateDoc = {
@@ -134,6 +148,13 @@ async function run() {
             };
 
             const result = await usersCollection.updateOne(filter, updateDoc);
+            res.send(result);
+        })
+
+        // add class api created here
+        app.post('/allClass', async (req, res) => {
+            const addClassData = req.body;
+            const result = await classCollection.insertOne(addClassData);
             res.send(result);
         })
 
