@@ -190,6 +190,24 @@ async function run() {
             res.send(result);
         })
 
+        // handle feedback by admin
+        app.patch('/allClasses/admin/feedback/:id', verifyJWT, verifyAdmin, async (req, res) => {
+            const id = req.params.id;
+            console.log(id);
+            const data = req.body;
+            console.log(data);
+            const filter = { _id: new ObjectId(id) };
+            const updateDoc = {
+                $set: {
+                    feedback: 'feedback'
+                },
+            };
+            const options = { upsert: true };
+
+            const result = await classCollection.updateOne(filter, updateDoc, options);
+            res.send(result);
+        })
+
         // see all class api here
         app.get('/allClass', verifyJWT, async (req, res) => {
             const email = req.query.email;
