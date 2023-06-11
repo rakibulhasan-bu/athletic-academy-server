@@ -224,9 +224,30 @@ async function run() {
             res.send(result);
         });
 
+        // select classes by students
+        app.put('/selectClass/:email', verifyJWT, async (req, res) => {
+            try {
+                const reqEmail = req.params.email;
+                const selectId = req.body.id;
+                console.log(reqEmail, selectId);
+                const options = { upsert: true };
+                const filter = { email: reqEmail };
+                const updateDoc = {
+                    $addToSet: {
+                        selectedClasses: selectId
+                    }
+                };
+
+                const result = await usersCollection.updateOne(filter, updateDoc, options);
+                res.send(result);
+            } catch (error) {
+                console.error('Error occurred while updating the document:', error);
+                res.status(500).send('Internal Server Error');
+            }
+        });
         // all courses or classes data here
-        app.get('/allCourses', async (req, res) => {
-            const result = await classCollection.find().toArray();
+        app.get('/allApprovedCourses', async (req, res) => {
+            const result = await classCollection.find({ status: "approve" }).toArray();
             res.send(result);
         })
         // all allInstructors data here
