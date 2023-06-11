@@ -157,6 +157,38 @@ async function run() {
             const result = await classCollection.insertOne(addClassData);
             res.send(result);
         })
+        // see all classes by admin related apis
+        app.get('/allClasses', verifyJWT, verifyAdmin, async (req, res) => {
+            const result = await classCollection.find().toArray();
+            res.send(result);
+        });
+
+        // handle approve by admin
+        app.patch('/allClasses/admin/approve/:id', verifyJWT, verifyAdmin, async (req, res) => {
+            const id = req.params.id;
+            const filter = { _id: new ObjectId(id) };
+            const updateDoc = {
+                $set: {
+                    status: 'approve'
+                },
+            };
+
+            const result = await classCollection.updateOne(filter, updateDoc);
+            res.send(result);
+        })
+        // handle deny by admin
+        app.patch('/allClasses/admin/deny/:id', verifyJWT, verifyAdmin, async (req, res) => {
+            const id = req.params.id;
+            const filter = { _id: new ObjectId(id) };
+            const updateDoc = {
+                $set: {
+                    status: 'deny'
+                },
+            };
+
+            const result = await classCollection.updateOne(filter, updateDoc);
+            res.send(result);
+        })
 
         // see all class api here
         app.get('/allClass', verifyJWT, async (req, res) => {
