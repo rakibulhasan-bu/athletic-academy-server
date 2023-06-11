@@ -229,7 +229,6 @@ async function run() {
             try {
                 const reqEmail = req.params.email;
                 const selectId = req.body.id;
-                console.log(reqEmail, selectId);
                 const options = { upsert: true };
                 const filter = { email: reqEmail };
                 const updateDoc = {
@@ -245,6 +244,46 @@ async function run() {
                 res.status(500).send('Internal Server Error');
             }
         });
+
+        // selected class get api here
+        app.get('/SelectedClasses/:email', verifyJWT, async (req, res) => {
+            try {
+                const reqEmail = req.params.email;
+
+                const filter = { email: reqEmail };
+                const user = await usersCollection.findOne(filter);
+                const selectedClassIds = user.selectedClasses.map(id => new ObjectId(id));
+
+                const classes = await classCollection.find({ _id: { $in: selectedClassIds } }).toArray();
+
+                res.send(classes);
+            } catch (error) {
+                console.error('Error occurred while retrieving the classes:', error);
+                res.status(500).send('Internal Server Error');
+            }
+        });
+
+        // selected class remove api created here
+        app.put('/removeSelectedClass/:email', verifyJWT, async (req, res) => {
+            try {
+                const reqEmail = req.params.email;
+                const selectId = req.body.id
+
+                const filter = { email: reqEmail };
+                const updateDoc = {
+                    $pull: {
+                        selectedClasses: selectId
+                    }
+                };
+
+                const result = await usersCollection.updateOne(filter, updateDoc);
+                res.send(result);
+            } catch (error) {
+                console.error('Error occurred while removing the ID from the array:', error);
+                res.status(500).send('Internal Server Error');
+            }
+        });
+
         // all courses or classes data here
         app.get('/allApprovedCourses', async (req, res) => {
             const result = await classCollection.find({ status: "approve" }).toArray();
