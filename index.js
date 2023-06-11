@@ -191,15 +191,13 @@ async function run() {
         })
 
         // handle feedback by admin
-        app.patch('/allClasses/admin/feedback/:id', verifyJWT, verifyAdmin, async (req, res) => {
+        app.put('/allClasses/admin/feedback/:id', verifyJWT, verifyAdmin, async (req, res) => {
             const id = req.params.id;
-            console.log(id);
-            const data = req.body;
-            console.log(data);
+            const data = req.body.body;
             const filter = { _id: new ObjectId(id) };
             const updateDoc = {
                 $set: {
-                    feedback: 'feedback'
+                    feedback: data
                 },
             };
             const options = { upsert: true };
