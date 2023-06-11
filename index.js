@@ -181,6 +181,11 @@ async function run() {
             const result = await classCollection.find().toArray();
             res.send(result);
         })
+        // all allInstructors data here
+        app.get('/allInstructors', async (req, res) => {
+            const result = await usersCollection.find({ role: 'instructor' }).toArray();
+            res.send(result);
+        })
 
         // Send a ping to confirm a successful connection
         await client.db("admin").command({ ping: 1 });
