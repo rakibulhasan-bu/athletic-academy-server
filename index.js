@@ -75,6 +75,12 @@ async function run() {
             res.send(result);
         });
 
+        app.get('/singleUser/:email', verifyJWT, async (req, res) => {
+            const reqEmail = req.params.email;
+            const result = await usersCollection.findOne({ email: reqEmail })
+            res.send(result)
+        })
+
         app.post('/users', async (req, res) => {
             const user = req.body;
             user.role = "student"
@@ -163,6 +169,49 @@ async function run() {
             const result = await classCollection.find().toArray();
             res.send(result);
         });
+        // class update by instructor
+        app.patch('/updateClass/:id', verifyJWT, async (req, res) => {
+            const id = req.params.id;
+            const { seats, price, className } = req.body.data;
+
+            const filter = { _id: new ObjectId(id) }
+            const updateClassDoc = {
+                $set: {
+                    className: className,
+                    price: price,
+                    seats: seats
+                }
+            }
+            const result = await classCollection.updateOne(filter, updateClassDoc)
+            res.send(result);
+        })
+        // see popular classes see by all
+        app.get('/popularClasses', async (req, res) => {
+            const result = await classCollection.find({ status: 'approve' }).sort({ students: -1 }).limit(6).toArray();
+            res.send(result);
+        });
+        // see popular instructors see by all
+        app.get('/popularInstructor', async (req, res) => {
+            const result = await classCollection.aggregate([
+                {
+                    $group: {
+                        _id: "$instructorName",
+                        totalStudents: { $sum: "$students" },
+                        courses: { $push: "$className" },
+                        instructorImage: { $first: "$imgURL" }
+                    }
+                },
+                {
+                    $sort: { totalStudents: -1 }
+                },
+                {
+                    $limit: 6
+                }
+            ]).toArray();
+
+            res.send(result);
+        });
+
 
         // handle approve by admin
         app.patch('/allClasses/admin/approve/:id', verifyJWT, verifyAdmin, async (req, res) => {
@@ -271,6 +320,9 @@ async function run() {
                 const filter = { email: reqEmail };
                 const user = await usersCollection.findOne(filter);
                 const enrolledClasses = user.enrolledClasses;
+
+                // Sort the enrolledClasses array by date in descending order
+                enrolledClasses.sort((a, b) => new Date(b.date) - new Date(a.date));
 
                 res.send(enrolledClasses);
             } catch (error) {
