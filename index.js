@@ -3,6 +3,7 @@ const app = express();
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
 require('dotenv').config()
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY)
 const port = process.env.PORT || 5000;
 
 // middleware
@@ -262,6 +263,21 @@ async function run() {
                 res.status(500).send('Internal Server Error');
             }
         });
+        // selected class get api here
+        app.get('/enrolledClasses/:email', verifyJWT, async (req, res) => {
+            try {
+                const reqEmail = req.params.email;
+
+                const filter = { email: reqEmail };
+                const user = await usersCollection.findOne(filter);
+                const enrolledClasses = user.enrolledClasses;
+
+                res.send(enrolledClasses);
+            } catch (error) {
+                console.error('Error occurred while retrieving the classes:', error);
+                res.status(500).send('Internal Server Error');
+            }
+        });
 
         // selected class remove api created here
         app.put('/removeSelectedClass/:email', verifyJWT, async (req, res) => {
@@ -295,6 +311,88 @@ async function run() {
             res.send(result);
         })
 
+
+        // payment section api started here
+        // create payment intent
+        app.post('/create-payment-intent', verifyJWT, async (req, res) => {
+            const { price } = req.body;
+            const amount = parseInt(price * 100);
+            const paymentIntent = await stripe.paymentIntents.create({
+                amount: amount,
+                currency: 'usd',
+                payment_method_types: ['card']
+            });
+
+            res.send({
+                clientSecret: paymentIntent.client_secret
+            })
+        })
+
+        // make payment here
+        app.post('/payments', verifyJWT, async (req, res) => {
+            try {
+                const reqEmail = req.body.email;
+                const reqId = req.body.id;
+
+                // firstly find the class
+                const classFilter = { _id: new ObjectId(reqId) }
+                const classResult = await classCollection.findOne(classFilter);
+
+                const enrolledClassData = {
+                    classId: reqId,
+                    imgURL: classResult?.imgURL,
+                    className: classResult?.className,
+                    instructorName: classResult?.instructorName,
+                    date: req.body?.date,
+                    transactionId: req.body?.transactionId,
+                    price: classResult?.price
+                }
+                const userFilter = { email: reqEmail };
+                const options = { upsert: true };
+                const pushUpdateDoc = {
+                    $addToSet: {
+                        enrolledClasses: enrolledClassData
+                    }
+                };
+                const pullUpdateDoc = {
+                    $pull: {
+                        selectedClasses: enrolledClassData.classId
+                    }
+                };
+
+                const classUpdateDoc = {
+                    $inc: {
+                        students: 1,
+                        seats: -1
+                    }
+                };
+
+                try {
+                    await usersCollection.updateOne(userFilter, pushUpdateDoc, options);
+                    await usersCollection.updateOne(userFilter, pullUpdateDoc);
+                    await classCollection.updateOne(classFilter, classUpdateDoc)
+
+                    res.send('successful');
+                } catch (error) {
+                    throw error;
+                }
+
+
+            } catch (error) {
+                console.error('Error occurred while enrolling in the class:', error);
+                res.status(500).send('Internal Server Error');
+            }
+
+
+
+
+            // const insertResult = await paymentCollection.insertOne(payment);
+
+            // const query = { _id: { $in: payment.cartItems.map(id => new ObjectId(id)) } }
+            // const deleteResult = await cartCollection.deleteMany(query)
+
+            // res.send({ insertResult, deleteResult });
+        })
         // Send a ping to confirm a successful connection
         await client.db("admin").command({ ping: 1 });
         console.log("Pinged your deployment. You successfully connected to MongoDB!");
