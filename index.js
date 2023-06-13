@@ -192,24 +192,37 @@ async function run() {
         });
         // see popular instructors see by all
         app.get('/popularInstructor', async (req, res) => {
-            const result = await classCollection.aggregate([
-                {
-                    $group: {
-                        _id: "$instructorName",
-                        totalStudents: { $sum: "$students" },
-                        courses: { $push: "$className" },
-                        instructorImage: { $first: "$imgURL" }
-                    }
-                },
-                {
-                    $sort: { totalStudents: -1 }
-                },
-                {
-                    $limit: 6
-                }
-            ]).toArray();
 
-            res.send(result);
+            // Retrieve instructor data
+            const instructors = await usersCollection.find({ role: 'instructor' }).toArray();
+            // Prepare response
+            const result = [];
+
+            for (const instructor of instructors) {
+
+                // Retrieve courses taught by the instructor with status "approve"
+                const courses = await classCollection.find({ instructorEmail: instructor.email, status: 'approve' }).toArray();
+
+                // Calculate the sum of students for all courses
+                const totalStudents = courses.reduce((sum, course) => sum + course.students, 0);
+
+                // Extract course names from the courses array
+                const courseNames = courses.map((course) => course.className);
+
+                // Create an object with the required data
+                const instructorData = {
+                    name: instructor.name,
+                    imgURL: instructor.imgURL,
+                    totalStudents,
+                    courseNames,
+                };
+                // Add the instructor data to the result array
+                result.push(instructorData);
+            }
+            // Sort the result array in descending order by totalStudents
+            result.sort((a, b) => b.totalStudents - a.totalStudents);
+            const topSixData = result.slice(0, 6);
+            res.send(topSixData)
         });
 
 
@@ -302,7 +315,7 @@ async function run() {
 
                 const filter = { email: reqEmail };
                 const user = await usersCollection.findOne(filter);
-                const selectedClassIds = user.selectedClasses.map(id => new ObjectId(id));
+                const selectedClassIds = user.selectedClasses?.map(id => new ObjectId(id));
 
                 const classes = await classCollection.find({ _id: { $in: selectedClassIds } }).toArray();
 
@@ -354,13 +367,45 @@ async function run() {
 
         // all courses or classes data here
         app.get('/allApprovedCourses', async (req, res) => {
-            const result = await classCollection.find({ status: "approve" }).toArray();
+            const result = await classCollection.find({ status: "approve" }).sort({ students: -1 }).toArray();
             res.send(result);
         })
         // all allInstructors data here
         app.get('/allInstructors', async (req, res) => {
-            const result = await usersCollection.find({ role: 'instructor' }).toArray();
-            res.send(result);
+            // Retrieve instructor data
+            const instructors = await usersCollection.find({ role: 'instructor' }).toArray();
+            // Prepare response
+            const result = [];
+
+            for (const instructor of instructors) {
+
+                // Retrieve courses taught by the instructor with status "approve"
+                const courses = await classCollection.find({ instructorEmail: instructor.email, status: 'approve' }).toArray();
+
+                // Calculate the sum of students for all courses
+                const totalStudents = courses.reduce((sum, course) => sum + course.students, 0);
+
+                // Extract course names from the courses array
+                const courseNames = courses.map((course) => course.className);
+                const popularCourses = courseNames.slice(0, 3);
+
+                // Create an object with the required data
+                const instructorData = {
+                    email: instructor.email,
+                    name: instructor.name,
+                    imgURL: instructor.imgURL,
+                    totalStudents,
+                    popularCourses,
+                };
+                // Add the instructor data to the result array
+                result.push(instructorData);
+            }
+            // Sort the result array in descending order by totalStudents
+            result.sort((a, b) => b.totalStudents - a.totalStudents);
+            res.send(result)
+
+            // const result = await usersCollection.find({ role: 'instructor' }).toArray();
+            // res.send(result);
         })
 
 
@@ -434,16 +479,6 @@ async function run() {
                 console.error('Error occurred while enrolling in the class:', error);
                 res.status(500).send('Internal Server Error');
             }
-
-
-
-
-            // const insertResult = await paymentCollection.insertOne(payment);
-
-            // const query = { _id: { $in: payment.cartItems.map(id => new ObjectId(id)) } }
-            // const deleteResult = await cartCollection.deleteMany(query)
-
-            // res.send({ insertResult, deleteResult });
         })
         // Send a ping to confirm a successful connection
         await client.db("admin").command({ ping: 1 });
